@@ -64,7 +64,7 @@ type
     AppName: string;
     AppDir: string;
     IniFileName: string;
-    Ini: TIniFile;
+    Ini: TMemIniFile;
 
     exPFileName: string;
 
@@ -86,6 +86,7 @@ type
     procedure SetUnitMaxNo(const Value: integer);
     procedure SetDFileName(const Value: string);
     procedure SetDLicense(const Value: string);
+    function ExecXmlToPdf(Filename:string): Cardinal;
   public
     { Public 宣言 }
     property AppVersion: string read FAppVersion write SetAppVersion;
@@ -153,7 +154,7 @@ begin
   edtApplication.Clear;
   edtLicense.Clear;
   edtCallsign.Clear;
-  Ini  := TIniFile.Create(IniFileName);
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     Top     := Ini.ReadInteger('main', 'top', -1);
     Left    := Ini.ReadInteger('main', 'left', -1);
@@ -177,12 +178,13 @@ begin
   exPFileName := PFileName;
   EnumWindows(@EnumWindowsProc, 0);   // 現在開いているフォームを閉じる
 
-  Ini  := TIniFile.Create(IniFileName);
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     Ini.WriteInteger('main', 'top', Top);
     Ini.WriteInteger('main', 'left', Left);
     Ini.WriteString('main', 'filename', FDFileName);
   finally
+    Ini.UpdateFile;
     FreeAndNil(Ini);
   end;
 end;
@@ -214,8 +216,8 @@ var
   wComment: string;
   SL, SL1, SL2: TstringList;
 begin
-  Ini  := TIniFile.Create(IniFileName);
-  SL  := TStringList.Create();
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  SL   := TStringList.Create();
   SL1  := TStringList.Create();
   SL2  := TStringList.Create();
   try
@@ -265,13 +267,12 @@ end;
 
 procedure TfrmMain.SaveModelTable(aStLicense: string);
 var
-  wLicense: string;
   wUnitNo: integer;
   wUnitNoS: string;
   wModel: string;
   wComment: string;
 begin
-  Ini  := TIniFile.Create(IniFileName);
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     if not cdsModel.Active then
       cdsModel.Open;
@@ -293,6 +294,7 @@ begin
       cdsModel.Next;
       end;
   finally
+    Ini.UpdateFile;
     FreeAndNil(Ini);
   end;
 end;
@@ -303,8 +305,6 @@ var
   LParams: string;
   LhInstance: Cardinal;
 begin
-  Ini  := TIniFile.Create(IniFileName);
-  try
     EnumWindows(@EnumWindowsProc, 0);   // 現在開いているフォームを閉じる
 
     if not FileExists(DFileName) then
@@ -313,20 +313,8 @@ begin
       exit;
       end;
 
-    LExePath  := ExpandFileName(cExeName);        //　DXmlToPdf.exe起動ファイルの相対パス
-    if not FileExists(LExePath) then
-      begin
-      MessageDlg('実行ファイルが見つかりません', mtConfirmation, [mbOk], 0, mbYes);
+    if ExecXmlToPdf(DFileName) <= 32 then
       exit;
-      end;
-
-    LExePath  := LExePath;   // DownボタンXmlToPdf.exeを実行する
-    LParams   := '"' + DFileName + '"';
-    LhInstance := RunExeFile(Handle, LExePath, LParams, '');
-    if LhInstance <= 32 then begin
-      MessageDlg('起動の失敗', mtConfirmation, [mbOk], 0, mbYes);
-      exit;
-    end;
 
     if not FileExists(PFileName) then
       begin
@@ -346,6 +334,8 @@ begin
     frmMain.FormStyle := fsStayOnTop;
     frmMain.FormStyle := fsNormal;
 
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  try
     DLicense := Ini.ReadString('main', 'license', '');
   finally
     FreeAndNil(Ini);
@@ -354,28 +344,28 @@ end;
 
 procedure TfrmMain.actReferExecute(Sender: TObject);
 begin
-  Ini  := TIniFile.Create(IniFileName);
-  try
-    with OpenDialog1 do
+  with OpenDialog1 do
+    begin
+    Title := 'Select file';
+    if DFileName = '' then
       begin
-      Title := 'Select file';
-      if DFileName = '' then
-        begin
-        InitialDir := AppDir;
-        FileName    := '';
-        end
-      else
-        begin
-        InitialDir  := ExtractFileDir(DFileName);
-        FileName    := ExtractFileName(DFileName);
-        end;
-      if Execute() then
-        DFileName := FileName;
-//      if not FileExists(PFileName) then
-//        begin
-//        DLicense := Ini.ReadString('main', 'license', '');
-//        end;
+      InitialDir := AppDir;
+      FileName    := '';
+      end
+    else
+      begin
+      InitialDir  := ExtractFileDir(DFileName);
+      FileName    := ExtractFileName(DFileName);
       end;
+    if not Execute() then
+      exit;
+    DFileName := FileName;
+    end;
+
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  try
+    if ExecXmlToPdf(DFileName) > 32 then
+      DLicense := Ini.ReadString('main', 'license', '');
   finally
     FreeAndNil(Ini);
   end;
@@ -404,6 +394,34 @@ begin
     DFileName := edtFileName.Text;
 end;
 
+function TfrmMain.ExecXmlToPdf(Filename: string): Cardinal;
+var
+  LExePath: string;
+  LParams: string;
+  LhInstance: Cardinal;
+begin
+  result := 0;
+  try
+    LExePath  := ExpandFileName(cExeName);        //　DXmlToPdf.exe起動ファイルの相対パス
+    if not FileExists(LExePath) then
+      begin
+      MessageDlg('実行ファイルが見つかりません', mtConfirmation, [mbOk], 0, mbYes);
+      exit;
+      end;
+
+    LExePath  := LExePath;   // DXmlToPdf.exeを実行する
+    LParams   := '"' + FileName + '"';
+    LhInstance := RunExeFile(Handle, LExePath, LParams, '');
+    result  := LhInstance;
+    if LhInstance <= 32 then begin
+      MessageDlg('起動の失敗', mtConfirmation, [mbOk], 0, mbYes);
+      exit;
+    end;
+  finally
+
+  end;
+end;
+
 procedure TfrmMain.SetAppVersion(const Value: string);
 begin
   FAppVersion := Value;
@@ -419,29 +437,28 @@ procedure TfrmMain.SetDFileName(const Value: string);
 var
   WFileName: string;
 begin
-  if Value <> FDFileName then
-    exPFileName := FPFileName;
+  if Value <> FPFileName then
+    exPFileName := FPFileName;    // 前回のファイル名
+  FDFileName := Value;
+  edtFileName.Text := FDFileName;
+  Caption := AppName;
+  actBrowse.Enabled := False;
+  if FDFileName <> '' then
+    begin
+    Caption := AppName +  ' - ' + ExtractFilename(FDFileName);
+    actBrowse.Enabled := True;
+    end;
+  FPFileName := ChangeFileExt(FDFileName, '.pdf');
 
-  Ini  := TIniFile.Create(IniFileName);
+  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
-    WFileName := Ini.ReadString('main', 'filename', '');
-
-    FDFileName := Value;
-    FPFileName := ChangeFileExt(FDFileName, '.pdf');
-    edtFileName.Text := FDFileName;
-    Caption := AppName;
-    actBrowse.Enabled := False;
     edtApplication.Clear;
     edtLicense.Clear;
     edtCallsign.Clear;
-    if FDFileName <> '' then
+    WFileName := Ini.ReadString('main', 'filename', '');
+    if (FDFileName <> '') and (FDFileName = WFileName) then
       begin
-      Caption := AppName +  ' - ' + ExtractFilename(FDFileName);
-      actBrowse.Enabled := True;
-      if FDFileName = WFileName then
-        begin
-        DLicense := Ini.ReadString('main', 'license', '');
-        end;
+      DLicense := Ini.ReadString('main', 'license', '');
       end;
   finally
     FreeAndNil(Ini);
@@ -451,12 +468,12 @@ end;
 procedure TfrmMain.SetDLicense(const Value: string);
 begin
   FDLicense := Value;
+  edtLicense.Text := FDLicense;
   actShowModel.Enabled := False;
   if FDLicense <> '' then
     actShowModel.Enabled := True;
-  Ini := TIniFile.Create(IniFileName);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
-    edtLicense.Text := FDLicense;
     edtApplication.Text := Ini.ReadString('main', 'application', '');
     edtCallsign.Text    := Ini.ReadString('main', 'Callsign', '');
   finally

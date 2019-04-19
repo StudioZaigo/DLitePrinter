@@ -1,7 +1,9 @@
 ﻿2019-04-14 DLitePrinter 2.0.1
 　・変更申請(届)のとき、変更項目を赤で表示するようにした(DXmlToPdf)。
+　・事項書の電波型式/周波数/空中線電力欄の電波の型式が横方向印刷ができていなかった。修正した(DXmlToPdf)。
+　・工事設計書(1)の電波型式の印刷列幅を広くした(DXmlToPdf)。
 　・ファイルのパスが長いとき、途中を省略して印刷するようにした(DXmlToPdf)。
-　・DXmlToPdf.iniの文字コードをANSIからUTF-8(BOM無し)に変更した(DXmlToPdf)。
+　・DXmlToPdf.iniの文字コードをANSIからUTF-8(BOMあり)に変更した(DXmlToPdf)。
 　・DXmlToPdf.exeにもバージョン番号(1.0.1)を付加した(DXmlToPdf)。
 　・アイコンを分かりやすいものに変更した。
 　・Browseボタンのクリック時に例外が発生する場合があったので、修正した。
