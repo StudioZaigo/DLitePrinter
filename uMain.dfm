@@ -60,7 +60,7 @@ object frmMain: TfrmMain
     Height = 33
     Action = actRefer
     Default = True
-    TabOrder = 1
+    TabOrder = 2
   end
   object btnModel: TButton
     Left = 378
@@ -69,7 +69,7 @@ object frmMain: TfrmMain
     Height = 33
     Action = actShowModel
     Caption = '&Show Model'
-    TabOrder = 2
+    TabOrder = 4
   end
   object btnBrowse: TButton
     Left = 378
@@ -97,7 +97,7 @@ object frmMain: TfrmMain
     ImeMode = imDisable
     LabelPosition = lpLeft
     ReadOnly = True
-    TabOrder = 4
+    TabOrder = 5
     Text = #22793#26356#30003#35531#26360
   end
   object edtLicense: TLabeledEdit
@@ -118,7 +118,7 @@ object frmMain: TfrmMain
     ImeMode = imDisable
     LabelPosition = lpLeft
     ReadOnly = True
-    TabOrder = 5
+    TabOrder = 6
     Text = #22793#26356#30003#35531#26360
   end
   object edtCallsign: TLabeledEdit
@@ -139,8 +139,19 @@ object frmMain: TfrmMain
     ImeMode = imDisable
     LabelPosition = lpLeft
     ReadOnly = True
-    TabOrder = 6
+    TabOrder = 7
     Text = #22793#26356#30003#35531#26360
+  end
+  object cbxPDF: TCheckBox
+    Left = 72
+    Top = 120
+    Width = 145
+    Height = 17
+    Caption = 'Output PDF file'
+    Checked = True
+    State = cbChecked
+    TabOrder = 1
+    OnClick = cbxPDFClick
   end
   object OpenDialog1: TOpenDialog
     DefaultExt = 'zip'

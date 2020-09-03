@@ -51,6 +51,7 @@ type
     mnuShowModel: TMenuItem;
     OpenDialog1: TOpenDialog;
     PopupMenu1: TPopupMenu;
+    cbxPDF: TCheckBox;
 
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -58,6 +59,7 @@ type
     procedure actReferExecute(Sender: TObject);
     procedure actBrowseExecute(Sender: TObject);
     procedure actShowModelExecute(Sender: TObject);
+    procedure cbxPDFClick(Sender: TObject);
   private
     { Private 宣言 }
     AppFileName: string;
@@ -144,6 +146,8 @@ uses uModel, uRecord;
 {$R *.dfm}
 
 procedure TfrmMain.FormCreate(Sender: TObject);
+var
+  pdfPutput: string;
 begin
   FisOk := true;
   AppFileName     := Application.ExeName;
@@ -154,7 +158,7 @@ begin
   edtApplication.Clear;
   edtLicense.Clear;
   edtCallsign.Clear;
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     Top     := Ini.ReadInteger('main', 'top', -1);
     Left    := Ini.ReadInteger('main', 'left', -1);
@@ -164,7 +168,14 @@ begin
       Self.Top := (Screen.Height - Self.Height) div 2;
       Self.Left := (Screen.Width - Self.Width)  div 2;
       end;
-    DFileName := Ini.ReadString('main', 'filename', '');
+    DFileName     := Ini.ReadString ('main', 'filename', '');
+  finally
+    FreeAndNil(Ini);
+  end;
+
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  try
+    cbxPdf.Checked := Ini.ReadBool   ('main', 'PDFOut', True);
   finally
     FreeAndNil(Ini);
   end;
@@ -178,11 +189,12 @@ begin
   exPFileName := PFileName;
   EnumWindows(@EnumWindowsProc, 0);   // 現在開いているフォームを閉じる
 
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     Ini.WriteInteger('main', 'top', Top);
     Ini.WriteInteger('main', 'left', Left);
     Ini.WriteString('main', 'filename', FDFileName);
+    Ini.WriteBool('main', 'PDFOut', cbxPdf.Checked);
   finally
     Ini.UpdateFile;
     FreeAndNil(Ini);
@@ -216,7 +228,7 @@ var
   wComment: string;
   SL, SL1, SL2: TstringList;
 begin
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   SL   := TStringList.Create();
   SL1  := TStringList.Create();
   SL2  := TStringList.Create();
@@ -272,7 +284,7 @@ var
   wModel: string;
   wComment: string;
 begin
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     if not cdsModel.Active then
       cdsModel.Open;
@@ -334,7 +346,7 @@ begin
     frmMain.FormStyle := fsStayOnTop;
     frmMain.FormStyle := fsNormal;
 
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     DLicense := Ini.ReadString('main', 'license', '');
   finally
@@ -362,7 +374,7 @@ begin
     DFileName := FileName;
     end;
 
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     if ExecXmlToPdf(DFileName) > 32 then
       DLicense := Ini.ReadString('main', 'license', '');
@@ -388,6 +400,14 @@ begin
   end;
 end;
 
+procedure TfrmMain.cbxPDFClick(Sender: TObject);
+begin
+  if cbxPDF.Checked then
+    FPFileName := ChangeFileExt(FDFileName, '.pdf')
+  else
+    FPFileName := ExtractFilePath(FDFileName) + 'DLitePrinter.pdf';
+end;
+
 procedure TfrmMain.edtFileNameChange(Sender: TObject);
 begin
   if DFileName <> edtFileName.Text then
@@ -410,7 +430,9 @@ begin
       end;
 
     LExePath  := LExePath;   // DXmlToPdf.exeを実行する
-    LParams   := '"' + FileName + '"';
+    LParams   := '"' + FileName + '" ';
+    LParams   := LParams + '"' + PFileName + '" ';
+    LParams :=  LParams + '-b';
     LhInstance := RunExeFile(Handle, LExePath, LParams, '');
     result  := LhInstance;
     if LhInstance <= 32 then begin
@@ -448,9 +470,9 @@ begin
     Caption := AppName +  ' - ' + ExtractFilename(FDFileName);
     actBrowse.Enabled := True;
     end;
-  FPFileName := ChangeFileExt(FDFileName, '.pdf');
+  cbxPDFClick(cbxPDF);
 
-  Ini  := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
+  Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     edtApplication.Clear;
     edtLicense.Clear;
@@ -475,7 +497,7 @@ begin
   Ini := TMemIniFile.Create(IniFileName, TEncoding.UTF8);
   try
     edtApplication.Text := Ini.ReadString('main', 'application', '');
-    edtCallsign.Text    := Ini.ReadString('main', 'Callsign', '');
+    edtCallsign.Text    := Ini.ReadString('main', 'callsign', '');
   finally
     FreeAndNil(Ini);
   end;
@@ -582,6 +604,7 @@ begin
       end;
     result := True;
     end;
+
 end;
 
 //-----------------------------------------------------------------------------
@@ -604,7 +627,8 @@ begin
 
   LInfo.lpFile       := PChar(AFile);
   LInfo.lpParameters := PChar(AParameters);
-  LInfo.nShow        := SW_SHOW;
+  LInfo.nShow        := SW_HIDE;
+//  LInfo.nShow        := SW_SHOW;
 
   ShellExecuteEx(@LInfo);
 
